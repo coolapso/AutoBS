@@ -4,6 +4,14 @@
   <img src="build/autobs_nobg.png" width="300" />
 </p>
 
+![Proudly Vibe Coded - Neon Flame](https://vibecoded.fyi/badges/flat/main/proudly-vibe-coded-neon-flame.svg)
+[![Release](https://github.com/coolapso/autobs/actions/workflows/release.yaml/badge.svg?branch=main)](https://github.com/coolapso/autobs/actions/workflows/release.yaml)
+![GitHub Tag](https://img.shields.io/github/v/tag/coolapso/autobs?logo=semver&label=semver&labelColor=gray&color=green)
+[![Go Report Card](https://goreportcard.com/badge/github.com/coolapso/autobs)](https://goreportcard.com/report/github.com/coolapso/autobs)
+![GitHub Sponsors](https://img.shields.io/github/sponsors/coolapso?style=flat&logo=githubsponsors)
+![Coded with GitHub Copilot](https://vibecoded.fyi/badges/flat/agents/github-copilot.svg)
+![Built with Claude](https://vibecoded.fyi/badges/flat/llms/claude.svg)
+
 A Purely vibe coded go CLI tool that fetches your daily GitHub commits, groups them by Jira ticket, summarizes them with an LLM, and posts professional status updates as Jira comments — automatically.
 
 ## How It Works
