@@ -27,7 +27,11 @@ case "$OS" in
     ;;
 esac
 
-LATEST=$(curl -s "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')
+if [ -n "$VERSION" ]; then
+  LATEST="$VERSION"
+else
+  LATEST=$(curl -s "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')
+fi
 
 if [ -z "$LATEST" ]; then
   echo "Failed to fetch latest release version."
