@@ -18,7 +18,7 @@ builds:
 aurs:
   - name: autobs-bin
     homepage: "https://github.com/coolapso/autobs"
-    description: "A simple, opinionated, yet usable linter for conventional commits, written in Go."
+    description: "Because the most important part of your day shouldn't be explaining to Jira what you did in Git"
     maintainers:
       - "coolapso <coolapso@coolapso.tech>"
 
