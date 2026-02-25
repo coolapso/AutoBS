@@ -15,6 +15,18 @@ builds:
         goarch: arm64
     main: .
 
+aurs:
+  - name: autobs-bin
+    homepage: "https://github.com/coolapso/autobs"
+    description: "A simple, opinionated, yet usable linter for conventional commits, written in Go."
+    maintainers:
+      - "coolapso <coolapso@coolapso.tech>"
+
+    license: "MIT"
+    private_key: "{{ .Env.AUR_KEY }}"
+    git_url: "ssh://aur@aur.archlinux.org/autobs-bin.git"
+    skip_upload: auto
+
 archives:
   - format: tar.gz
     format_overrides:
