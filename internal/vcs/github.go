@@ -54,7 +54,3 @@ func (g *GitHubProvider) GetCommits(since time.Time, user string) ([]models.Comm
 
 	return commits, nil
 }
-
-
-
-

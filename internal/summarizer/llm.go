@@ -18,10 +18,10 @@ const systemPrompt = "You are a technical project manager. Translate the followi
 
 // LLMSummarizer implements Summarizer supporting OpenAI, Gemini, and AWS Bedrock.
 type LLMSummarizer struct {
-	Provider  string // "openai", "gemini", or "bedrock"
-	APIKey    string
-	Model     string
-	AWSRegion string
+	Provider   string // "openai", "gemini", or "bedrock"
+	APIKey     string
+	Model      string
+	AWSRegion  string
 	httpClient *http.Client
 }
 
@@ -251,4 +251,3 @@ func (l *LLMSummarizer) summarizeBedrock(userContent string) (string, error) {
 
 	return textBlock.Value, nil
 }
-
