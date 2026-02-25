@@ -85,7 +85,19 @@ The config file is written with `0600` permissions. Secrets are masked in the co
 
 ---
 
-## Technical Stack
+## Development Standards
+
+* **Formatting:** All Go code must be formatted with `go fmt` before committing.
+* **Linting:** All `golangci-lint` checks must be addressed before committing. Run `golangci-lint run` and resolve any reported issues.
+* **Commits:** A commit must be made after each relevant step (e.g., after adding a feature, fixing a bug, updating config, adding tests). Commits must follow the [Conventional Commits](https://www.conventionalcommits.org/) standard:
+  * `feat:` — new feature
+  * `fix:` — bug fix
+  * `build:` — maintenance, tooling, dependencies
+  * `chore:` — web page related changes
+  * `docs:` — documentation changes
+  * `refactor:` — code restructuring without behaviour change
+  * `test:` — adding or updating tests
+  * `ci:` — CI/CD changes
 * **Language:** Go 1.21+
 * **CLI:** `github.com/spf13/cobra`
 * **GitHub SDK:** `github.com/google/go-github/v65/github` + `golang.org/x/oauth2`
