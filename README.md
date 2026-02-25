@@ -1,6 +1,6 @@
 # autobs: Automated Business Summary 😏
 
-<img src="media/autobs_nobg.png" width="300" />
+<img src="build/autobs_nobg.png" width="300" />
 
 A Purely vibe coded go CLI tool that fetches your daily GitHub commits, groups them by Jira ticket, summarizes them with an LLM, and posts professional status updates as Jira comments — automatically.
 

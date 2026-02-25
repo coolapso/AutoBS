@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>autobs – Automate the BS</title>
+  <style>
+    :root {
+      --blue: #0f52ba;
+      --light-blue: #4a90d9;
+      --gopher-cyan: #00acd7;
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #21262d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --green: #3fb950;
+      --yellow: #d29922;
+      --red: #f85149;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 4rem 1.5rem 3rem;
+      background: radial-gradient(ellipse at top, #1c2e4a 0%, var(--bg) 70%);
+      border-bottom: 1px solid var(--surface2);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: "📊 📈 📋 🗓️ ✅ 📧 📊 📈";
+      position: absolute;
+      top: 1rem;
+      left: 0;
+      width: 100%;
+      font-size: 1.4rem;
+      opacity: 0.07;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    .badge {
+      display: inline-block;
+      background: var(--gopher-cyan);
+      color: #000;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      margin-bottom: 1.5rem;
+    }
+
+    .mascot {
+      width: min(280px, 60vw);
+      filter: drop-shadow(0 0 40px rgba(0, 172, 215, 0.35));
+      margin-bottom: 1.5rem;
+      animation: float 4s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(-12px); }
+    }
+
+    h1 {
+      font-size: clamp(2.4rem, 6vw, 4rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    h1 span { color: var(--gopher-cyan); }
+
+    .tagline {
+      font-size: clamp(1rem, 2.5vw, 1.35rem);
+      color: var(--muted);
+      max-width: 560px;
+      margin: 0.75rem auto 2rem;
+    }
+
+    /* ── INSTALL BOX ── */
+    .install-box {
+      background: var(--surface);
+      border: 1px solid var(--surface2);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      max-width: 540px;
+      width: 100%;
+      margin: 0 auto;
+      text-align: left;
+    }
+
+    .install-box p {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .install-cmd {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.82rem;
+      color: var(--green);
+      word-break: break-all;
+    }
+
+    .copy-btn {
+      margin-left: auto;
+      flex-shrink: 0;
+      background: none;
+      border: 1px solid var(--surface2);
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 0.3rem 0.6rem;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+    }
+
+    .copy-btn:hover { color: var(--text); border-color: var(--muted); }
+
+    /* ── SECTION ── */
+    section {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 3.5rem 1.5rem;
+    }
+
+    .section-title {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    .section-title small {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--muted);
+      font-weight: 400;
+      margin-top: 0.25rem;
+    }
+
+    /* ── FEATURE GRID ── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.25rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--surface2);
+      border-radius: 12px;
+      padding: 1.5rem;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .card:hover {
+      border-color: var(--gopher-cyan);
+      transform: translateY(-3px);
+    }
+
+    .card-icon { font-size: 2rem; margin-bottom: 0.75rem; }
+    .card h3   { font-size: 1rem; font-weight: 600; margin-bottom: 0.4rem; }
+    .card p    { font-size: 0.875rem; color: var(--muted); }
+
+    /* ── HOW IT WORKS ── */
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .step {
+      display: flex;
+      gap: 1rem;
+      background: var(--surface);
+      border: 1px solid var(--surface2);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      align-items: flex-start;
+    }
+
+    .step-num {
+      flex-shrink: 0;
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      background: var(--gopher-cyan);
+      color: #000;
+      font-weight: 800;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .step h3   { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .step p    { font-size: 0.85rem; color: var(--muted); }
+
+    /* ── QUOTE ── */
+    .quote-section {
+      background: var(--surface);
+      border-top: 1px solid var(--surface2);
+      border-bottom: 1px solid var(--surface2);
+    }
+
+    .quote-section section {
+      text-align: center;
+    }
+
+    blockquote {
+      font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+      font-style: italic;
+      color: var(--text);
+      max-width: 680px;
+      margin: 0 auto 1rem;
+      line-height: 1.5;
+    }
+
+    blockquote::before { content: "\201C"; color: var(--gopher-cyan); }
+    blockquote::after  { content: "\201D"; color: var(--gopher-cyan); }
+
+    cite {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      text-align: center;
+      padding: 2rem 1.5rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+      border-top: 1px solid var(--surface2);
+    }
+
+    footer a { color: var(--gopher-cyan); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════ HERO ════════════════ -->
+<div class="hero">
+  <span class="badge">🐹 Now with 100% less manual Jira updates</span>
+
+  <img class="mascot" src="autobs_nobg.png" alt="autobs gopher mascot in a business suit" />
+
+  <h1>auto<span>bs</span></h1>
+  <p class="tagline">
+    Because the most important part of your day shouldn't be explaining to Jira
+    what you did in Git — let the robots write the corporate poetry.
+  </p>
+
+  <div class="install-box">
+    <p>Quick install</p>
+    <div class="install-cmd">
+      <span>curl -s https://coolapso.github.io/autobs/install.sh | sudo bash</span>
+      <button class="copy-btn" onclick="copyInstall(this)">Copy</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ FEATURES ════════════════ -->
+<section>
+  <h2 class="section-title">
+    What does it do?
+    <small>Besides saving your sanity, that is.</small>
+  </h2>
+  <div class="grid">
+    <div class="card">
+      <div class="card-icon">🔍</div>
+      <h3>Stalks your own commits</h3>
+      <p>Scans today's GitHub commits so you don't have to remember what you actually shipped.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🤖</div>
+      <h3>Translates nerd to manager</h3>
+      <p>Feeds your commits to an LLM that converts <code>fix: null ptr deref in auth middleware</code> into "Enhanced platform stability."</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">📋</div>
+      <h3>Updates Jira so you won't</h3>
+      <p>Posts a professional, business-value-focused comment on every Jira ticket your commits reference. No browser required.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">☁️</div>
+      <h3>Works with your AI of choice</h3>
+      <p>OpenAI, Gemini, or AWS Bedrock. Pick whichever one your company has already over-paid for.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🏃</div>
+      <h3>One command. That's it.</h3>
+      <p>Run <code>autobs</code> and go back to writing actual code. The stand-up update writes itself.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🕵️</div>
+      <h3>Dry-run mode</h3>
+      <p>Preview the AI-generated corporate speak before it permanently pollutes your Jira tickets.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ HOW IT WORKS ════════════════ -->
+<section style="padding-top:0">
+  <h2 class="section-title">
+    How it works
+    <small>Three steps between you and a clean conscience at stand-up.</small>
+  </h2>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div>
+        <h3>Collect</h3>
+        <p>Fetches all your commits from today using the GitHub API. Yes, it knows you force-pushed at 11:59 PM.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div>
+        <h3>Summarize</h3>
+        <p>Groups commits by Jira ticket ID (sniffed from commit messages), reads the ticket context, and asks your LLM to write a status update that sounds like a real human wrote it.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div>
+        <h3>Post</h3>
+        <p>Fires off a comment on each Jira ticket. Your PM sees progress. You see freedom. Everyone wins.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ QUOTE ════════════════ -->
+<div class="quote-section">
+  <section>
+    <blockquote>
+      I haven't manually updated a Jira ticket since I installed this thing.
+      My manager thinks I've grown as a professional. I just wrote a regex.
+    </blockquote>
+    <cite>— A very real and totally not made-up senior engineer</cite>
+  </section>
+</div>
+
+<!-- ════════════════ SETUP ════════════════ -->
+<section>
+  <h2 class="section-title">
+    Get started in 60 seconds
+    <small>Faster than your company's Jira instance loads.</small>
+  </h2>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div>
+        <h3>Install</h3>
+        <p><code>curl -s https://coolapso.github.io/autobs/install.sh | sudo bash</code></p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div>
+        <h3>Configure</h3>
+        <p>Run <code>autobs configure</code> — provide your GitHub token, Jira credentials, and LLM API key. Secrets stay local in <code>~/.autobs.json</code>.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div>
+        <h3>Profit</h3>
+        <p>Run <code>autobs</code> at the end of each day. Go home. Sleep. Let the gopher do the paperwork.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ FOOTER ════════════════ -->
+<footer>
+  <p>
+    <a href="https://github.com/coolapso/autobs">⭐ Star on GitHub</a>
+    &nbsp;·&nbsp;
+    <a href="https://github.com/coolapso/autobs/releases">Releases</a>
+    &nbsp;·&nbsp;
+    <a href="https://github.com/coolapso/autobs/issues">Report a Bug (or a feature disguised as one)</a>
+  </p>
+  <p style="margin-top:0.75rem">
+    Made with ☕, mild frustration, and a deep respect for the gopher mascot.
+    <br />No Jira tickets were manually updated in the making of this tool.
+  </p>
+</footer>
+
+<script>
+  function copyInstall(btn) {
+    const cmd = btn.previousElementSibling.textContent.trim();
+    navigator.clipboard.writeText(cmd).then(() => {
+      btn.textContent = "Copied!";
+      setTimeout(() => { btn.textContent = "Copy"; }, 2000);
+    });
+  }
+</script>
+</body>
+</html>
