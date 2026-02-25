@@ -1,6 +1,8 @@
 # autobs: Automated Business Summary 😏
 
-<img src="build/autobs_nobg.png" width="300" />
+<p align="center">
+  <img src="build/autobs_nobg.png" width="300" />
+</p>
 
 A Purely vibe coded go CLI tool that fetches your daily GitHub commits, groups them by Jira ticket, summarizes them with an LLM, and posts professional status updates as Jira comments — automatically.
 
@@ -17,17 +19,70 @@ A Purely vibe coded go CLI tool that fetches your daily GitHub commits, groups t
 
 - Go 1.21+
 - A GitHub personal access token (or use `gh auth token` if you have the GitHub CLI)
-- A Jira account with API token
+- A Jira account with [API token](https://id.atlassian.com/manage-profile/security/api-tokens)
 - An OpenAI, Gemini, or AWS Bedrock account (OpenAI and Gemini haven't been tested yet!)
 - Git commits must be authored by the same user as the GitHub token
 - Git commits must have a Jira ticket in the footer with the format `Jira-Ticket: PROJ-123`
 
 ## Installation
 
+Pre-built binaries for Linux, macOS, and Windows are available on the [releases page](https://github.com/coolapso/autobs/releases).
+
+### Linux / macOS
+
+#### Arch based distros (AUR)
+
 ```bash
-git clone https://github.com/cfcolaco/autobs
+yay -S autobs-bin
+```
+
+#### Install script
+
+> [!WARNING]
+> Please note that curl to bash is not the most secure way to install any project. Please make sure you understand and trust the [install script](https://github.com/coolapso/autobs/blob/main/build/install.sh) before running it.
+
+**Latest version:**
+```bash
+curl -s https://autobs.coolapso.sh/install.sh | sudo bash
+```
+
+**Specific version:**
+```bash
+curl -s https://autobs.coolapso.sh/install.sh | VERSION="v1.0.0" sudo bash
+```
+
+#### Manually
+
+Grab the archive for your platform from the [releases page](https://github.com/coolapso/autobs/releases), extract it, and place the binary somewhere in your `$PATH`.
+
+```bash
+VERSION=$(curl -s "https://api.github.com/repos/coolapso/autobs/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+curl -LO https://github.com/coolapso/autobs/releases/download/${VERSION}/autobs_linux_amd64.tar.gz
+tar -xzf autobs_linux_amd64.tar.gz
+sudo mv autobs /usr/local/bin/
+```
+
+#### Build from source
+
+```bash
+git clone https://github.com/coolapso/autobs
 cd autobs
 go build -o autobs .
+sudo mv autobs /usr/local/bin/
+```
+
+### Windows
+
+Grab the latest `.zip` for Windows from the [releases page](https://github.com/coolapso/autobs/releases), extract the archive, and run `autobs.exe` from a terminal. Optionally add it to a folder in your `%PATH%` for convenience.
+
+### macOS
+
+Grab the latest `.tar.gz` for darwin from the [releases page](https://github.com/coolapso/autobs/releases) and extract it.
+
+If macOS warns that the binary is damaged or from an unidentified developer, remove it from quarantine:
+
+```bash
+xattr -d com.apple.quarantine /path/to/autobs
 ```
 
 ## Configuration
