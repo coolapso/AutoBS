@@ -17,6 +17,7 @@ import (
 
 var dryRun bool
 var yesterday bool
+var standup bool
 
 var rootCmd = &cobra.Command{
 	Use:   "autobs",
@@ -59,6 +60,7 @@ Example usage:
 func init() {
 	rootCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Summarize commits but print output instead of posting to Jira")
 	rootCmd.Flags().BoolVar(&yesterday, "yesterday", false, "Fetch commits from yesterday instead of today")
+	rootCmd.Flags().BoolVar(&standup, "standup", false, "Print a standup-style summary of all commits (skips Jira posting)")
 }
 
 // Execute is the entry point called from main.
@@ -70,7 +72,7 @@ func Execute() {
 
 func runE(cmd *cobra.Command, args []string) error {
 	// Load and validate required environment variables.
-	env, err := loadEnv()
+	env, err := loadEnv(standup)
 	if err != nil {
 		return err
 	}
@@ -101,6 +103,29 @@ func runE(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("Found %d commit(s) from GitHub for user %q on %s.\n", len(commits), env.githubUser, since.Format("2006-01-02"))
+
+	// Standup mode: summarize all commits in an informal style and print; never post to Jira.
+	if standup {
+		if len(commits) == 0 {
+			fmt.Printf("No commits found for %s.\n", since.Format("2006-01-02"))
+			return nil
+		}
+		messages := make([]string, 0, len(commits))
+		for _, c := range commits {
+			messages = append(messages, c.Message)
+		}
+		summary, err := llmSummarizer.SummarizeStandup(messages)
+		if err != nil {
+			return fmt.Errorf("summarizing standup: %w", err)
+		}
+		fmt.Println("\n=== Standup Summary ===")
+		fmt.Println()
+		for _, line := range strings.Split(strings.TrimSpace(summary), "\n") {
+			fmt.Println(line)
+		}
+		fmt.Println()
+		return nil
+	}
 
 	// Extract Jira ticket IDs from commit message footers and group by ticket.
 	jiraTicketRe := regexp.MustCompile(`Jira-Ticket:\s*([A-Z]+-\d+)`)
@@ -228,7 +253,7 @@ func resolve(envKey, fileVal string) string {
 	return fileVal
 }
 
-func loadEnv() (*envConfig, error) {
+func loadEnv(skipJira bool) (*envConfig, error) {
 	// Load config file as fallback (errors silently ignored if file doesn't exist).
 	fileCfg, _ := loadConfigFile()
 	if fileCfg == nil {
@@ -252,10 +277,14 @@ func loadEnv() (*envConfig, error) {
 	always := []field{
 		{"GITHUB_TOKEN", cfg.githubToken},
 		{"GITHUB_USER", cfg.githubUser},
-		{"JIRA_URL", cfg.jiraURL},
-		{"JIRA_USER", cfg.jiraUser},
-		{"JIRA_TOKEN", cfg.jiraToken},
 		{"LLM_PROVIDER", cfg.llmProvider},
+	}
+	if !skipJira {
+		always = append(always,
+			field{"JIRA_URL", cfg.jiraURL},
+			field{"JIRA_USER", cfg.jiraUser},
+			field{"JIRA_TOKEN", cfg.jiraToken},
+		)
 	}
 	missing := []string{}
 	for _, f := range always {

@@ -16,6 +16,8 @@ import (
 
 const systemPrompt = "You are a technical project manager. Translate the following technical git commits into a single, professional status update. Focus on business value and functional impact. Use plain text only — no markdown, no bullet symbols, no bold, no headers. Write in short, plain sentences separated by newlines for distinct updates. Do not mention file names or internal code structures."
 
+const standupSystemPrompt = "You are a developer giving a brief daily standup update to your team. Summarize the following git commits in an informal, technical tone. Keep it short and conversational — focus on what was done and any relevant context. Group related work together. Write in plain text only, no markdown, no bullet symbols. Use short paragraphs or line breaks to separate distinct topics."
+
 // LLMSummarizer implements Summarizer supporting OpenAI, Gemini, and AWS Bedrock.
 type LLMSummarizer struct {
 	Provider   string // "openai", "gemini", or "bedrock"
@@ -55,13 +57,23 @@ func (l *LLMSummarizer) Summarize(commits []string, ticketTitle, ticketDescripti
 		userContent = ctx.String()
 	}
 
+	return l.summarize(systemPrompt, userContent)
+}
+
+// SummarizeStandup summarizes all commits in an informal standup style.
+// All commits are included regardless of Jira-Ticket footers.
+func (l *LLMSummarizer) SummarizeStandup(commits []string) (string, error) {
+	return l.summarize(standupSystemPrompt, strings.Join(commits, "\n---\n"))
+}
+
+func (l *LLMSummarizer) summarize(sysPrompt, userContent string) (string, error) {
 	switch l.Provider {
 	case "openai":
-		return l.summarizeOpenAI(userContent)
+		return l.summarizeOpenAI(sysPrompt, userContent)
 	case "gemini":
-		return l.summarizeGemini(userContent)
+		return l.summarizeGemini(sysPrompt, userContent)
 	case "bedrock":
-		return l.summarizeBedrock(userContent)
+		return l.summarizeBedrock(sysPrompt, userContent)
 	default:
 		return "", fmt.Errorf("unsupported LLM_PROVIDER %q: must be \"openai\", \"gemini\", or \"bedrock\"", l.Provider)
 	}
@@ -88,7 +100,7 @@ type openAIResponse struct {
 	} `json:"error,omitempty"`
 }
 
-func (l *LLMSummarizer) summarizeOpenAI(userContent string) (string, error) {
+func (l *LLMSummarizer) summarizeOpenAI(sysPrompt, userContent string) (string, error) {
 	model := l.Model
 	if model == "" {
 		model = "gpt-4o-mini"
@@ -97,7 +109,7 @@ func (l *LLMSummarizer) summarizeOpenAI(userContent string) (string, error) {
 	reqBody := openAIRequest{
 		Model: model,
 		Messages: []openAIMessage{
-			{Role: "system", Content: systemPrompt},
+			{Role: "system", Content: sysPrompt},
 			{Role: "user", Content: userContent},
 		},
 	}
@@ -159,14 +171,14 @@ type geminiResponse struct {
 	} `json:"error,omitempty"`
 }
 
-func (l *LLMSummarizer) summarizeGemini(userContent string) (string, error) {
+func (l *LLMSummarizer) summarizeGemini(sysPrompt, userContent string) (string, error) {
 	model := l.Model
 	if model == "" {
 		model = "gemini-1.5-flash"
 	}
 
 	reqBody := geminiRequest{
-		SystemInstruction: geminiContent{Parts: []geminiPart{{Text: systemPrompt}}},
+		SystemInstruction: geminiContent{Parts: []geminiPart{{Text: sysPrompt}}},
 		Contents:          []geminiContent{{Parts: []geminiPart{{Text: userContent}}}},
 	}
 
@@ -205,7 +217,7 @@ func (l *LLMSummarizer) summarizeGemini(userContent string) (string, error) {
 
 // --- AWS Bedrock (Converse API) ---
 
-func (l *LLMSummarizer) summarizeBedrock(userContent string) (string, error) {
+func (l *LLMSummarizer) summarizeBedrock(sysPrompt, userContent string) (string, error) {
 	if l.Model == "" {
 		return "", fmt.Errorf("LLM_MODEL is required for the bedrock provider (e.g. anthropic.claude-3-5-sonnet-20241022-v2:0)")
 	}
@@ -222,7 +234,7 @@ func (l *LLMSummarizer) summarizeBedrock(userContent string) (string, error) {
 	input := &bedrockruntime.ConverseInput{
 		ModelId: aws.String(l.Model),
 		System: []types.SystemContentBlock{
-			&types.SystemContentBlockMemberText{Value: systemPrompt},
+			&types.SystemContentBlockMemberText{Value: sysPrompt},
 		},
 		Messages: []types.Message{
 			{
