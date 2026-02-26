@@ -85,7 +85,9 @@ func runE(cmd *cobra.Command, args []string) error {
 	}
 
 	// Collect commits for the target day.
-	today := time.Now().Truncate(24 * time.Hour)
+	now := time.Now()
+	year, month, day := now.Date()
+	today := time.Date(year, month, day, 0, 0, 0, 0, now.Location())
 	var since, until time.Time
 	if yesterday {
 		since = today.AddDate(0, 0, -1)

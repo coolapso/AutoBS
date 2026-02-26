@@ -27,9 +27,12 @@ func NewGitHubProvider(token string) *GitHubProvider {
 // Returned commits contain raw SHA and message only — ticket parsing is left to the caller.
 func (g *GitHubProvider) GetCommits(since, until time.Time, user string) ([]models.Commit, error) {
 	ctx := context.Background()
-	query := fmt.Sprintf("author:%s author-date:>=%s", user, since.Format("2006-01-02"))
+	var query string
 	if !until.IsZero() {
-		query += fmt.Sprintf(" author-date:<%s", until.Format("2006-01-02"))
+		// Use the inclusive range syntax; until is exclusive (midnight of next day), so subtract one day for the end bound.
+		query = fmt.Sprintf("author:%s author-date:%s..%s", user, since.Format("2006-01-02"), until.AddDate(0, 0, -1).Format("2006-01-02"))
+	} else {
+		query = fmt.Sprintf("author:%s author-date:>=%s", user, since.Format("2006-01-02"))
 	}
 
 	opts := &gh.SearchOptions{
