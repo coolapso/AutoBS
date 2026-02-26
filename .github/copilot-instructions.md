@@ -24,13 +24,17 @@
 ### GitHub VCS (`internal/vcs/github.go`)
 * **SDK:** `github.com/google/go-github/v65/github` + `golang.org/x/oauth2`
 * **API:** GitHub Search API (`client.Search.Commits`)
-* **Query:** `author:{GITHUB_USER} author-date:>={today}` — matches on git commit author, not pusher
+* **Query (today):** `author:{GITHUB_USER} author-date:>={today}` — open-ended, matches everything from today onward
+* **Query (bounded/yesterday):** `author:{GITHUB_USER} author-date:{since}..{until}` — uses GitHub's inclusive range syntax; two separate `author-date` qualifiers are not reliably AND-ed by the API
 * **Note:** `author:` is used (not `committer:`) because commits are often merged via PR/CI
 
 ### LLM Summarizer (`internal/summarizer/llm.go`)
 * Supports `openai`, `gemini`, and `bedrock` via `LLM_PROVIDER`
-* **System Prompt:** "You are a technical project manager. Translate the following technical git commits into a single, professional status update. Focus on business value and functional impact. Use bullet points for distinct updates. Do not mention file names or internal code structures."
-* **Ticket context:** when available, the Jira ticket title and description are prepended to the user message (`Ticket context:\nTitle: ...\nDescription: ...\n\nCommits:\n...`) so the LLM can generate more relevant summaries
+* **`systemPrompt`:** professional, management-friendly status update; plain text only (no markdown, no bullet symbols), short sentences separated by newlines
+* **`standupSystemPrompt`:** informal, technical standup style; conversational tone, plain text, short paragraphs separated by newlines
+* The three provider methods (`summarizeOpenAI`, `summarizeGemini`, `summarizeBedrock`) each accept a `sysPrompt` parameter via the shared `summarize()` helper
+* **`Summarize(commits, ticketTitle, ticketDescription)`** — uses `systemPrompt`; prepends Jira ticket context when available
+* **`SummarizeStandup(commits)`** — uses `standupSystemPrompt`; accepts all commits regardless of Jira-Ticket footer
 * OpenAI default model: `gpt-4o-mini`; Gemini default: `gemini-1.5-flash`
 * Bedrock uses the **Converse API** (`bedrockruntime.Converse`) — works across all model families; `LLM_MODEL` is required
 * AWS credentials for Bedrock use the standard chain (env vars or `~/.aws/credentials`)
@@ -47,11 +51,13 @@
 ## CLI (`cmd/`)
 
 ### Commands
-* `updateMyTickets` (default) — run the full pipeline
-* `updateMyTickets configure` — interactive setup that saves to `~/.updateMyTickets.json`
+* `autobs` (default) — run the full pipeline
+* `autobs configure` — interactive setup that saves to `~/.autobs.json`
 
 ### Flags
 * `--dry-run` — generates LLM summaries but prints them to terminal instead of posting to Jira
+* `--yesterday` — targets yesterday's date instead of today; uses `author-date:SINCE..UNTIL` range query
+* `--standup` — prints an informal standup-style summary of **all** commits (no Jira-Ticket filter, no Jira posting required)
 
 ### Configuration Resolution
 Settings are resolved in this order (first wins):
@@ -65,9 +71,9 @@ The config file is written with `0600` permissions. Secrets are masked in the co
 |----------------|---------------------|-------|
 | `GITHUB_TOKEN` | always              | Use `$(gh auth token)` for private org repos |
 | `GITHUB_USER`  | always              | Must match git commit author login |
-| `JIRA_URL`     | always              |  |
-| `JIRA_USER`    | always              | Jira account email |
-| `JIRA_TOKEN`   | always              |  |
+| `JIRA_URL`     | non-standup         |  |
+| `JIRA_USER`    | non-standup         | Jira account email |
+| `JIRA_TOKEN`   | non-standup         |  |
 | `LLM_PROVIDER` | always              | `openai`, `gemini`, or `bedrock` |
 | `LLM_API_KEY`  | openai / gemini     | Not needed for Bedrock |
 | `LLM_MODEL`    | bedrock (required), openai/gemini (optional) | |
@@ -77,11 +83,12 @@ The config file is written with `0600` permissions. Secrets are masked in the co
 
 ## Implementation Logic Flow
 
-1. **Initialize** — load config (env → file fallback), validate required fields per provider, instantiate providers
-2. **Collect** — `VCS.GetCommits(today, user)` returns raw commits (SHA + Message)
-3. **Extract** — regex `Jira-Ticket:\s*([A-Z]+-\d+)` applied in `cmd/root.go` (decoupled from VCS layer); group by ticket ID
-4. **Process** — for each ticket concurrently: `Tracker.GetTicket(ticketID)` (for context) → `Summarizer.Summarize(messages, title, description)` → `Tracker.PostComment(ticketID, summary)`
-5. **Report** — print `[UPDATED]` / `[FAILED]` per ticket; dry-run prints formatted preview instead
+1. **Initialize** — load config (env → file fallback), validate required fields per provider (Jira fields skipped for `--standup`), instantiate providers
+2. **Collect** — `VCS.GetCommits(since, until, user)` returns raw commits (SHA + Message); `since`/`until` are local-midnight times
+3. **Standup branch** — if `--standup`: pass all commit messages to `Summarizer.SummarizeStandup()`, print result, exit (no Jira interaction)
+4. **Extract** — regex `Jira-Ticket:\s*([A-Z]+-\d+)` applied in `cmd/root.go` (decoupled from VCS layer); group by ticket ID
+5. **Process** — for each ticket concurrently: `Tracker.GetTicket(ticketID)` (for context) → `Summarizer.Summarize(messages, title, description)` → `Tracker.PostComment(ticketID, summary)`
+6. **Report** — print `[UPDATED]` / `[FAILED]` per ticket; dry-run prints formatted preview instead
 
 ---
 

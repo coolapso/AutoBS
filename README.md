@@ -27,10 +27,10 @@ A Purely vibe coded go CLI tool that fetches your daily GitHub commits, groups t
 
 - Go 1.21+
 - A GitHub personal access token (or use `gh auth token` if you have the GitHub CLI)
-- A Jira account with [API token](https://id.atlassian.com/manage-profile/security/api-tokens)
+- A Jira account with [API token](https://id.atlassian.com/manage-profile/security/api-tokens) *(not required for `--standup`)*
 - An OpenAI, Gemini, or AWS Bedrock account (OpenAI and Gemini haven't been tested yet!)
 - Git commits must be authored by the same user as the GitHub token
-- Git commits must have a Jira ticket in the footer with the format `Jira-Ticket: PROJ-123`
+- Git commits must have a Jira ticket in the footer with the format `Jira-Ticket: PROJ-123` *(only required for Jira posting; `--standup` includes all commits)*
 
 ## Installation
 
@@ -113,9 +113,9 @@ This prompts for each setting and saves them to `~/.config/autobs/config.json`. 
 |----------------|-----------------------------------------------------------------------------|
 | `GITHUB_TOKEN` | GitHub personal access token. Use `$(gh auth token)` for private org repos  |
 | `GITHUB_USER`  | Your GitHub username (must match your git commit author login)              |
-| `JIRA_URL`     | Base URL of your Jira instance (e.g. `https://yourorg.atlassian.net`)      |
-| `JIRA_USER`    | Your Jira account email                                                     |
-| `JIRA_TOKEN`   | Jira API token — generate at https://id.atlassian.com/manage-profile/security/api-tokens |
+| `JIRA_URL`     | Base URL of your Jira instance (e.g. `https://yourorg.atlassian.net`) *(not required for `--standup`)* |
+| `JIRA_USER`    | Your Jira account email *(not required for `--standup`)*                    |
+| `JIRA_TOKEN`   | Jira API token — generate at https://id.atlassian.com/manage-profile/security/api-tokens *(not required for `--standup`)* |
 | `LLM_PROVIDER` | LLM to use: `openai`, `gemini`, or `bedrock`                               |
 | `LLM_API_KEY`  | API key for OpenAI or Gemini (not needed for Bedrock)                       |
 | `LLM_MODEL`    | Model override (optional for OpenAI/Gemini, **required** for Bedrock)       |
@@ -146,6 +146,22 @@ Prompts interactively for all settings and saves to `~/.config/autobs/config.jso
 ```
 
 Fetches commits and generates LLM summaries, but prints them to the terminal instead of posting to Jira.
+
+### Fetch yesterday's commits
+
+```bash
+./autobs --yesterday
+```
+
+Targets yesterday's date instead of today. Works with `--dry-run` and `--standup` as well.
+
+### Standup mode
+
+```bash
+./autobs --standup
+```
+
+Generates a short, informal, technically-flavoured summary of **all** your commits — including ones without a `Jira-Ticket` footer. Nothing is posted to Jira; the output is printed to your terminal so you have a quick refresher before the daily stand-up. Jira credentials are not required in this mode.
 
 ### Using env vars instead
 
@@ -189,7 +205,7 @@ Replaces the legacy username/password-only login.
 Jira-Ticket: AUTH-42
 ```
 
-Commits without a `Jira-Ticket` footer are fetched but ignored during grouping.
+Commits without a `Jira-Ticket` footer are fetched but skipped during Jira grouping. Use `--standup` to include them in a plain-text summary.
 
 ## Example Output
 
@@ -212,9 +228,19 @@ Found 3 commit(s) from GitHub for user "johndoe" on 2026-02-24.
 === autobs Dry Run Preview ===
 
 ┌─ AUTH-42
-│  • Completed OAuth2 login integration with Google and GitHub providers
-│  • Replaced legacy password-only flow, improving security posture
+│  Completed OAuth2 login integration with Google and GitHub providers.
+│  Replaced legacy password-only flow, improving security posture.
 └─ (not posted)
+```
+
+**Standup mode:**
+```
+Found 5 commit(s) from GitHub for user "johndoe" on 2026-02-24.
+
+=== Standup Summary ===
+
+Wrapped up the OAuth2 login flow — Google and GitHub providers are wired up and the old password-only path is gone.
+Also knocked out a couple of flaky tests in the auth suite and bumped the CI timeout so the pipeline stops lying about failures.
 ```
 
 ## Supported LLM Providers
