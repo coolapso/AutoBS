@@ -23,10 +23,14 @@ func NewGitHubProvider(token string) *GitHubProvider {
 }
 
 // GetCommits fetches all commits authored by user on or after since, using the GitHub Search API.
+// If until is non-zero, an upper bound is added to the query.
 // Returned commits contain raw SHA and message only — ticket parsing is left to the caller.
-func (g *GitHubProvider) GetCommits(since time.Time, user string) ([]models.Commit, error) {
+func (g *GitHubProvider) GetCommits(since, until time.Time, user string) ([]models.Commit, error) {
 	ctx := context.Background()
 	query := fmt.Sprintf("author:%s author-date:>=%s", user, since.Format("2006-01-02"))
+	if !until.IsZero() {
+		query += fmt.Sprintf(" author-date:<%s", until.Format("2006-01-02"))
+	}
 
 	opts := &gh.SearchOptions{
 		ListOptions: gh.ListOptions{PerPage: 100},

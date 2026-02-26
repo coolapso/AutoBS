@@ -16,6 +16,7 @@ import (
 )
 
 var dryRun bool
+var yesterday bool
 
 var rootCmd = &cobra.Command{
 	Use:   "autobs",
@@ -57,6 +58,7 @@ Example usage:
 
 func init() {
 	rootCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Summarize commits but print output instead of posting to Jira")
+	rootCmd.Flags().BoolVar(&yesterday, "yesterday", false, "Fetch commits from yesterday instead of today")
 }
 
 // Execute is the entry point called from main.
@@ -82,14 +84,21 @@ func runE(cmd *cobra.Command, args []string) error {
 		fmt.Println("--- DRY RUN — nothing will be posted to Jira ---")
 	}
 
-	// Collect today's commits.
+	// Collect commits for the target day.
 	today := time.Now().Truncate(24 * time.Hour)
-	commits, err := githubProvider.GetCommits(today, env.githubUser)
+	var since, until time.Time
+	if yesterday {
+		since = today.AddDate(0, 0, -1)
+		until = today
+	} else {
+		since = today
+	}
+	commits, err := githubProvider.GetCommits(since, until, env.githubUser)
 	if err != nil {
 		return fmt.Errorf("fetching commits: %w", err)
 	}
 
-	fmt.Printf("Found %d commit(s) from GitHub for user %q on %s.\n", len(commits), env.githubUser, today.Format("2006-01-02"))
+	fmt.Printf("Found %d commit(s) from GitHub for user %q on %s.\n", len(commits), env.githubUser, since.Format("2006-01-02"))
 
 	// Extract Jira ticket IDs from commit message footers and group by ticket.
 	jiraTicketRe := regexp.MustCompile(`Jira-Ticket:\s*([A-Z]+-\d+)`)
@@ -108,7 +117,7 @@ func runE(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(ticketCommits) == 0 {
-		fmt.Println("No commits found for today.")
+		fmt.Printf("No commits found for %s.\n", since.Format("2006-01-02"))
 		fmt.Println("Tips:")
 		fmt.Println("  • Check GITHUB_USER matches your GitHub login exactly")
 		fmt.Println("  • If your commits are in private org repos, your token needs the 'repo' scope")
