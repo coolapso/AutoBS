@@ -14,7 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types"
 )
 
-const systemPrompt = "You are a technical project manager. Translate the following technical git commits into a single, professional status update. Focus on business value and functional impact. Use bullet points for distinct updates. Do not mention file names or internal code structures."
+const systemPrompt = "You are a technical project manager. Translate the following technical git commits into a single, professional status update. Focus on business value and functional impact. Use plain text only — no markdown, no bullet symbols, no bold, no headers. Write in short, plain sentences separated by newlines for distinct updates. Do not mention file names or internal code structures."
 
 // LLMSummarizer implements Summarizer supporting OpenAI, Gemini, and AWS Bedrock.
 type LLMSummarizer struct {
