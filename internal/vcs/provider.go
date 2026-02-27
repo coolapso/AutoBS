@@ -11,4 +11,7 @@ type VCSProvider interface {
 	// GetCommits returns commits authored by user on or after since.
 	// If until is non-zero, only commits before that time are returned.
 	GetCommits(since, until time.Time, user string) ([]models.Commit, error)
+
+	// GetOpenPRCommits returns all commits in currently open PRs (including drafts) authored by user.
+	GetOpenPRCommits(user string) ([]models.Commit, error)
 }

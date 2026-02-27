@@ -18,6 +18,7 @@ import (
 var dryRun bool
 var yesterday bool
 var standup bool
+var includePRs bool
 
 var rootCmd = &cobra.Command{
 	Use:   "autobs",
@@ -61,6 +62,7 @@ func init() {
 	rootCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Summarize commits but print output instead of posting to Jira")
 	rootCmd.Flags().BoolVar(&yesterday, "yesterday", false, "Fetch commits from yesterday instead of today")
 	rootCmd.Flags().BoolVar(&standup, "standup", false, "Print a standup-style summary of all commits (skips Jira posting)")
+	rootCmd.Flags().BoolVar(&includePRs, "include-prs", false, "Include commits from currently open PRs (drafts included)")
 }
 
 // Execute is the entry point called from main.
@@ -100,6 +102,24 @@ func runE(cmd *cobra.Command, args []string) error {
 	commits, err := githubProvider.GetCommits(since, until, env.githubUser)
 	if err != nil {
 		return fmt.Errorf("fetching commits: %w", err)
+	}
+
+	if includePRs {
+		prCommits, err := githubProvider.GetOpenPRCommits(env.githubUser)
+		if err != nil {
+			log.Printf("[WARN] could not fetch open PR commits: %v", err)
+		} else {
+			// Deduplicate by SHA before merging.
+			seen := make(map[string]bool, len(commits))
+			for _, c := range commits {
+				seen[c.SHA] = true
+			}
+			for _, c := range prCommits {
+				if !seen[c.SHA] {
+					commits = append(commits, c)
+				}
+			}
+		}
 	}
 
 	fmt.Printf("Found %d commit(s) from GitHub for user %q on %s.\n", len(commits), env.githubUser, since.Format("2006-01-02"))
