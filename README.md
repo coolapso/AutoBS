@@ -16,11 +16,11 @@ A Purely vibe coded go CLI tool that fetches your daily GitHub commits, groups t
 
 ## How It Works
 
-1. **Collect** — Searches GitHub for all commits you authored today (using the GitHub Search API with `author:{user} author-date:>={date}`)
+1. **Collect** — Searches GitHub for all commits you authored today (using the GitHub Search API with `author:{user} author-date:>={date}`). With `--include-prs`, also fetches all commits from your currently open PRs (drafts included)
 2. **Parse** — Extracts `Jira-Ticket: PROJ-123` footers from commit messages
 3. **Enrich** — Fetches each Jira ticket's title and description for LLM context
-4. **Summarize** — Sends each ticket's commits (plus ticket context) to an LLM for a management-friendly summary (concurrently)
-5. **Post** — Adds the summary as a comment on the corresponding Jira ticket
+4. **Summarize** — Sends each ticket's commits (plus ticket context) to an LLM for a professional, action-oriented summary (concurrently). With `--dry-run`, saves the result to a local cache (`~/.autobs_cache.json`) instead of posting
+5. **Post** — Adds the summary as a comment on the corresponding Jira ticket. On a normal run after a `--dry-run`, the cached summary is used — no second LLM call
 6. **Report** — Prints which tickets were updated or failed
 
 ## Prerequisites
@@ -145,7 +145,36 @@ Prompts interactively for all settings and saves to `~/.config/autobs/config.jso
 ./autobs --dry-run
 ```
 
-Fetches commits and generates LLM summaries, but prints them to the terminal instead of posting to Jira.
+Fetches commits, generates LLM summaries, and prints a formatted preview to the terminal. The summaries are **cached** to `~/.autobs_cache.json`. Running without `--dry-run` afterwards will use the cache and post directly to Jira — no second LLM call needed.
+
+> If a cached dry-run exists from a previous day, `autobs` will error and ask you to either run `--dry-run` again to regenerate, or `--clear-cache` to discard it.
+
+### Post cached dry-run to Jira
+
+```bash
+./autobs --dry-run   # generates preview + saves cache
+./autobs             # reads cache, posts to Jira, deletes cache
+```
+
+### Include commits from open PRs
+
+```bash
+./autobs --include-prs
+```
+
+Merges commits from all currently open PRs (drafts included) with the regular commit results. Useful for capturing work-in-progress that hasn't been merged yet. Works with `--dry-run` and `--standup`.
+
+### Clear the dry-run cache
+
+```bash
+./autobs --clear-cache
+```
+
+Deletes any existing dry-run cache then continues with the command. Combine with `--dry-run` to regenerate a fresh preview:
+
+```bash
+./autobs --clear-cache --dry-run
+```
 
 ### Fetch yesterday's commits
 
@@ -209,10 +238,21 @@ Commits without a `Jira-Ticket` footer are fetched but skipped during Jira group
 
 ## Example Output
 
-**Normal run:**
+Output is color-coded in the terminal (green for success, red for errors, cyan for ticket IDs and borders, yellow for tips and SHAs, magenta for PR numbers). Colors are automatically disabled when piping or when `NO_COLOR` is set.
+
+**Normal run (no cache):**
 ```
-Found 3 commit(s) from GitHub for user "johndoe" on 2026-02-24.
-2 unique ticket(s) found: AUTH-42 PLAT-17
+Found 3 commit(s) from GitHub for user johndoe on 2026-02-24.
+Found 2 unique ticket(s): AUTH-42 PLAT-17
+
+=== autobs Report ===
+  [UPDATED] AUTH-42
+  [UPDATED] PLAT-17
+```
+
+**Normal run (using cached dry-run):**
+```
+Using cached dry-run from 2026-02-24 09:31 (2 ticket(s)).
 
 === autobs Report ===
   [UPDATED] AUTH-42
@@ -222,20 +262,26 @@ Found 3 commit(s) from GitHub for user "johndoe" on 2026-02-24.
 **Dry run:**
 ```
 --- DRY RUN — nothing will be posted to Jira ---
-Found 3 commit(s) from GitHub for user "johndoe" on 2026-02-24.
-2 unique ticket(s) found: AUTH-42 PLAT-17
+Found 3 commit(s) from GitHub for user johndoe on 2026-02-24.
+Found 2 unique ticket(s): AUTH-42 PLAT-17
 
 === autobs Dry Run Preview ===
 
 ┌─ AUTH-42
 │  Completed OAuth2 login integration with Google and GitHub providers.
 │  Replaced legacy password-only flow, improving security posture.
+│
+│  Commits:
+│    a1b2c3d  acme/backend
+│    e4f5g6h  acme/backend  (PR #42)
 └─ (not posted)
+
+Dry-run cached — run without --dry-run to post these summaries to Jira.
 ```
 
 **Standup mode:**
 ```
-Found 5 commit(s) from GitHub for user "johndoe" on 2026-02-24.
+Found 5 commit(s) from GitHub for user johndoe on 2026-02-24.
 
 === Standup Summary ===
 
@@ -262,10 +308,11 @@ This is an AI Friendly project, and contributions are very welcome! Feel free to
 The tool uses a provider pattern for extensibility:
 
 ```
-internal/vcs/         — VCSProvider interface + GitHub implementation (go-github SDK)
+internal/vcs/         — VCSProvider interface + GitHub implementation (GetCommits + GetOpenPRCommits)
 internal/tracker/     — TrackerProvider interface + Jira implementation (PostComment + GetTicket)
 internal/summarizer/  — Summarizer interface + OpenAI/Gemini/Bedrock implementation
-pkg/models/           — Shared Commit, Summary, and TicketInfo types
+internal/cache/       — Dry-run cache (read/write/delete ~/.autobs_cache.json)
+pkg/models/           — Shared Commit (SHA, Message, Repository, PRNumber), Summary, and TicketInfo types
 cmd/                  — CLI entry point (cobra), Jira ticket extraction, orchestration
 ```
 
