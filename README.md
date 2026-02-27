@@ -14,6 +14,8 @@
 
 A Purely vibe coded go CLI tool that fetches your daily GitHub commits, groups them by Jira ticket, summarizes them with an LLM, and posts professional status updates as Jira comments — automatically.
 
+> Because your time is valuable, your Jira tickets deserve updates, and your LLM bill does not need to be called twice for the same summary.
+
 ## How It Works
 
 1. **Collect** — Searches GitHub for all commits you authored today (using the GitHub Search API with `author:{user} author-date:>={date}`). With `--include-prs`, also fetches all commits from your currently open PRs (drafts included)
@@ -145,16 +147,20 @@ Prompts interactively for all settings and saves to `~/.config/autobs/config.jso
 ./autobs --dry-run
 ```
 
-Fetches commits, generates LLM summaries, and prints a formatted preview to the terminal. The summaries are **cached** to `~/.autobs_cache.json`. Running without `--dry-run` afterwards will use the cache and post directly to Jira — no second LLM call needed.
+Fetches commits, generates LLM summaries, and prints a formatted preview to the terminal. The summaries are **cached** to `~/.autobs_cache.json` so that when you're happy with the preview and run `autobs` for real, it skips the LLM entirely and posts straight from cache.
 
-> If a cached dry-run exists from a previous day, `autobs` will error and ask you to either run `--dry-run` again to regenerate, or `--clear-cache` to discard it.
+One LLM call. That's it. Tokens don't grow on trees. 🌳💸
+
+> If a cached dry-run exists from a previous day, `autobs` will refuse to post it — because yesterday's regrets belong in yesterday's Jira tickets. It'll tell you to regenerate with `--dry-run` or nuke the cache with `--clear-cache`.
 
 ### Post cached dry-run to Jira
 
 ```bash
-./autobs --dry-run   # generates preview + saves cache
-./autobs             # reads cache, posts to Jira, deletes cache
+./autobs --dry-run   # step 1: review what the AI cooked up, save to cache
+./autobs             # step 2: post from cache — no AI, no cost, no drama
 ```
+
+Your LLM provider only gets billed once. You're welcome.
 
 ### Include commits from open PRs
 
