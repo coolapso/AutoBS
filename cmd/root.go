@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cfcolaco/autobs/internal/cache"
 	"github.com/cfcolaco/autobs/internal/summarizer"
 	"github.com/cfcolaco/autobs/internal/tracker"
 	"github.com/cfcolaco/autobs/internal/vcs"
@@ -21,6 +22,7 @@ var dryRun bool
 var yesterday bool
 var standup bool
 var includePRs bool
+var clearCache bool
 
 // color palette
 var (
@@ -75,10 +77,11 @@ Example usage:
 }
 
 func init() {
-	rootCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Summarize commits but print output instead of posting to Jira")
+	rootCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Summarize commits but print output instead of posting to Jira (saves a cache for later posting)")
 	rootCmd.Flags().BoolVar(&yesterday, "yesterday", false, "Fetch commits from yesterday instead of today")
 	rootCmd.Flags().BoolVar(&standup, "standup", false, "Print a standup-style summary of all commits (skips Jira posting)")
 	rootCmd.Flags().BoolVar(&includePRs, "include-prs", false, "Include commits from currently open PRs (drafts included)")
+	rootCmd.Flags().BoolVar(&clearCache, "clear-cache", false, "Delete any existing dry-run cache before running")
 }
 
 // Execute is the entry point called from main.
@@ -104,7 +107,7 @@ func runE(cmd *cobra.Command, args []string) error {
 		cBanner.Println("--- DRY RUN — nothing will be posted to Jira ---")
 	}
 
-	// Collect commits for the target day.
+	// Compute target date window.
 	now := time.Now()
 	year, month, day := now.Date()
 	today := time.Date(year, month, day, 0, 0, 0, 0, now.Location())
@@ -115,6 +118,38 @@ func runE(cmd *cobra.Command, args []string) error {
 	} else {
 		since = today
 	}
+	targetDate := since.Format("2006-01-02")
+
+	// Handle --clear-cache: wipe any existing cache before proceeding.
+	if clearCache {
+		if err := cache.Delete(); err != nil {
+			return fmt.Errorf("clearing cache: %w", err)
+		}
+		cTip.Println("Dry-run cache cleared.")
+	}
+
+	// On a normal (non-dry-run, non-standup) run, check for an existing cached dry-run.
+	if !dryRun && !standup {
+		cached, err := cache.Load()
+		if err != nil {
+			return fmt.Errorf("loading cache: %w", err)
+		}
+		if cached != nil {
+			if cached.Date != targetDate {
+				return fmt.Errorf(
+					"%s\n  cached date : %s\n  target date : %s\n\n%s",
+					cError.Sprint("A dry-run cache exists but does not match today's target date."),
+					cMeta.Sprint(cached.Date),
+					cMeta.Sprint(targetDate),
+					cTip.Sprint("Run with --dry-run to generate a fresh preview, or --clear-cache to discard the old cache."),
+				)
+			}
+			// Valid cache found — post from it and skip the LLM entirely.
+			return postFromCache(cached, jiraTracker)
+		}
+	}
+
+	// Fresh path: fetch commits from GitHub.
 	commits, err := githubProvider.GetCommits(since, until, env.githubUser)
 	if err != nil {
 		return fmt.Errorf("fetching commits: %w", err)
@@ -125,7 +160,6 @@ func runE(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			log.Printf("[WARN] could not fetch open PR commits: %v", err)
 		} else {
-			// Deduplicate by SHA before merging.
 			seen := make(map[string]bool, len(commits))
 			for _, c := range commits {
 				seen[c.SHA] = true
@@ -139,11 +173,12 @@ func runE(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("Found %d commit(s) from GitHub for user %s on %s.\n",
-		len(commits), cTicketID.Sprint(env.githubUser), cMeta.Sprint(since.Format("2006-01-02")))
+		len(commits), cTicketID.Sprint(env.githubUser), cMeta.Sprint(targetDate))
 
+	// Standup mode: summarize all commits informally; no Jira posting or caching.
 	if standup {
 		if len(commits) == 0 {
-			cTip.Printf("No commits found for %s.\n", since.Format("2006-01-02"))
+			cTip.Printf("No commits found for %s.\n", targetDate)
 			return nil
 		}
 		messages := make([]string, 0, len(commits))
@@ -181,7 +216,7 @@ func runE(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(ticketCommits) == 0 {
-		cTip.Printf("No commits found for %s.\n", since.Format("2006-01-02"))
+		cTip.Printf("No commits found for %s.\n", targetDate)
 		cTip.Println("Tips:")
 		cTip.Println("  • Check GITHUB_USER matches your GitHub login exactly")
 		cTip.Println("  • If your commits are in private org repos, your token needs the 'repo' scope")
@@ -196,7 +231,7 @@ func runE(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Println()
 
-	// Concurrently summarize and (optionally) post comments for each ticket.
+	// Concurrently summarize (and post for non-dry-run) each ticket.
 	type result struct {
 		ticketID string
 		commits  []models.Commit
@@ -204,7 +239,7 @@ func runE(cmd *cobra.Command, args []string) error {
 		err      error
 	}
 
-	results := make(chan result, len(ticketCommits))
+	resultsCh := make(chan result, len(ticketCommits))
 	var wg sync.WaitGroup
 
 	for ticketID, ticketCmts := range ticketCommits {
@@ -217,7 +252,6 @@ func runE(cmd *cobra.Command, args []string) error {
 				messages[i] = c.Message
 			}
 
-			// Fetch ticket context for better summaries; proceed even if it fails.
 			var ticketTitle, ticketDescription string
 			if info, err := jiraTracker.GetTicket(tid); err != nil {
 				log.Printf("[WARN] could not fetch ticket info for %s: %v", tid, err)
@@ -229,30 +263,35 @@ func runE(cmd *cobra.Command, args []string) error {
 			summary, err := llmSummarizer.Summarize(messages, ticketTitle, ticketDescription)
 			if err != nil {
 				log.Printf("[ERROR] summarizing %s: %v", tid, err)
-				results <- result{ticketID: tid, commits: cmts, err: err}
+				resultsCh <- result{ticketID: tid, commits: cmts, err: err}
 				return
 			}
 
 			if !dryRun {
 				if err := jiraTracker.PostComment(tid, summary); err != nil {
 					log.Printf("[ERROR] posting comment to %s: %v", tid, err)
-					results <- result{ticketID: tid, commits: cmts, err: err}
+					resultsCh <- result{ticketID: tid, commits: cmts, err: err}
 					return
 				}
 			}
 
-			results <- result{ticketID: tid, commits: cmts, summary: summary}
+			resultsCh <- result{ticketID: tid, commits: cmts, summary: summary}
 		}(ticketID, ticketCmts)
 	}
 
 	wg.Wait()
-	close(results)
+	close(resultsCh)
 
-	// Print final report.
+	// Collect all results into a slice so we can both print and (for dry-run) cache them.
+	var allResults []result
+	for r := range resultsCh {
+		allResults = append(allResults, r)
+	}
+
 	if dryRun {
 		fmt.Println()
 		cHeader.Println("=== autobs Dry Run Preview ===")
-		for r := range results {
+		for _, r := range allResults {
 			if r.err != nil {
 				fmt.Printf("\n%s %s — %v\n", cError.Sprint("[ERROR]"), r.ticketID, r.err)
 			} else {
@@ -278,16 +317,80 @@ func runE(cmd *cobra.Command, args []string) error {
 				fmt.Printf("%s %s\n", cBox.Sprint("└─"), cMeta.Sprint("(not posted)"))
 			}
 		}
+
+		// Save successful summaries to cache for later posting.
+		entries := make(map[string]cache.Entry)
+		for _, r := range allResults {
+			if r.err == nil {
+				entries[r.ticketID] = cache.Entry{Body: r.summary, Commits: r.commits}
+			}
+		}
+		if len(entries) > 0 {
+			if err := cache.Save(targetDate, entries); err != nil {
+				log.Printf("[WARN] could not save dry-run cache: %v", err)
+			} else {
+				fmt.Println()
+				fmt.Printf("%s\n", cMeta.Sprint("Dry-run cached — run without --dry-run to post these summaries to Jira."))
+			}
+		}
 	} else {
 		fmt.Println()
 		cHeader.Println("=== autobs Report ===")
-		for r := range results {
+		for _, r := range allResults {
 			if r.err != nil {
 				fmt.Printf("  %s  %s — %v\n", cError.Sprint("[FAILED]"), r.ticketID, r.err)
 			} else {
 				fmt.Printf("  %s %s\n", cSuccess.Sprint("[UPDATED]"), cTicketID.Sprint(r.ticketID))
 			}
 		}
+	}
+
+	return nil
+}
+
+// postFromCache posts all summaries from a valid cached dry-run to Jira, then deletes the cache.
+func postFromCache(cached *cache.File, jiraTracker tracker.TrackerProvider) error {
+	fmt.Printf("Using cached dry-run from %s (%d ticket(s)).\n",
+		cMeta.Sprint(cached.GeneratedAt.Local().Format("2006-01-02 15:04")),
+		len(cached.Summaries))
+
+	type result struct {
+		ticketID string
+		err      error
+	}
+
+	resultsCh := make(chan result, len(cached.Summaries))
+	var wg sync.WaitGroup
+
+	for tid, entry := range cached.Summaries {
+		wg.Add(1)
+		go func(tid, body string) {
+			defer wg.Done()
+			if err := jiraTracker.PostComment(tid, body); err != nil {
+				log.Printf("[ERROR] posting comment to %s: %v", tid, err)
+				resultsCh <- result{ticketID: tid, err: err}
+				return
+			}
+			resultsCh <- result{ticketID: tid}
+		}(tid, entry.Body)
+	}
+
+	wg.Wait()
+	close(resultsCh)
+
+	fmt.Println()
+	cHeader.Println("=== autobs Report ===")
+	for r := range resultsCh {
+		if r.err != nil {
+			fmt.Printf("  %s  %s — %v\n", cError.Sprint("[FAILED]"), r.ticketID, r.err)
+		} else {
+			fmt.Printf("  %s %s\n", cSuccess.Sprint("[UPDATED]"), cTicketID.Sprint(r.ticketID))
+		}
+	}
+
+	// Always delete the cache after a posting attempt to avoid re-posting.
+	if err := cache.Delete(); err != nil {
+		log.Printf("[WARN] could not delete cache after posting: %v", err)
 	}
 
 	return nil
