@@ -104,7 +104,40 @@ The config file is written with `0600` permissions (directory with `0700`). Secr
 
 ---
 
-## Development Standards
+## Terminal Output Conventions
+
+All terminal output lives in `cmd/root.go`. Colors use `github.com/fatih/color` and are automatically disabled for non-TTY outputs and when `NO_COLOR` is set.
+
+### Color Palette
+
+| Variable   | Colors                        | Used for |
+|------------|-------------------------------|----------|
+| `cHeader`  | Bold                          | Section headers (`=== ... ===`) |
+| `cBanner`  | Yellow + Bold                 | `--- DRY RUN ---` banner |
+| `cSuccess` | Green + Bold                  | `[UPDATED]` |
+| `cError`   | Red + Bold                    | `[FAILED]`, `[ERROR]` |
+| `cBox`     | Cyan                          | Box-drawing characters (`┌─`, `│`, `└─`) |
+| `cTicketID`| Cyan + Bold                   | Ticket IDs (e.g. `PROJ-123`) |
+| `cMeta`    | HiBlack (dim)                 | Repo names, dates, `(not posted)`, metadata labels, hint messages |
+| `cSHA`     | Yellow                        | Short commit SHAs |
+| `cPR`      | Magenta                       | PR numbers (e.g. `(PR #42)`) |
+| `cTip`     | Yellow                        | Tips, warnings, no-commit messages |
+
+**Rule:** LLM-generated summary text always uses the **default terminal color** — never apply a color to the summary body.
+
+### Dry-run Box Format
+
+```
+┌─ TICKET-ID          ← cBox + cTicketID
+│  Summary line...    ← cBox + default text
+│
+│  Commits:           ← cBox + cMeta
+│    abc1234  owner/repo            ← cBox + cSHA + cMeta
+│    def5678  owner/repo  (PR #42)  ← cBox + cSHA + cMeta + cPR
+└─ (not posted)       ← cBox + cMeta
+```
+
+
 
 * **Formatting:** All Go code must be formatted with `go fmt` before committing.
 * **Linting:** All `golangci-lint` checks must be addressed before committing. Run `golangci-lint run` and resolve any reported issues.
