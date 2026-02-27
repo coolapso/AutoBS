@@ -12,6 +12,7 @@ import (
 	"github.com/cfcolaco/autobs/internal/summarizer"
 	"github.com/cfcolaco/autobs/internal/tracker"
 	"github.com/cfcolaco/autobs/internal/vcs"
+	"github.com/cfcolaco/autobs/pkg/models"
 	"github.com/spf13/cobra"
 )
 
@@ -149,11 +150,11 @@ func runE(cmd *cobra.Command, args []string) error {
 
 	// Extract Jira ticket IDs from commit message footers and group by ticket.
 	jiraTicketRe := regexp.MustCompile(`Jira-Ticket:\s*([A-Z]+-\d+)`)
-	ticketCommits := make(map[string][]string)
+	ticketCommits := make(map[string][]models.Commit)
 	for _, c := range commits {
 		m := jiraTicketRe.FindStringSubmatch(c.Message)
 		if len(m) == 2 {
-			ticketCommits[m[1]] = append(ticketCommits[m[1]], c.Message)
+			ticketCommits[m[1]] = append(ticketCommits[m[1]], c)
 		}
 	}
 
@@ -182,6 +183,7 @@ func runE(cmd *cobra.Command, args []string) error {
 	// Concurrently summarize and (optionally) post comments for each ticket.
 	type result struct {
 		ticketID string
+		commits  []models.Commit
 		summary  string
 		err      error
 	}
@@ -189,10 +191,15 @@ func runE(cmd *cobra.Command, args []string) error {
 	results := make(chan result, len(ticketCommits))
 	var wg sync.WaitGroup
 
-	for ticketID, messages := range ticketCommits {
+	for ticketID, ticketCmts := range ticketCommits {
 		wg.Add(1)
-		go func(tid string, msgs []string) {
+		go func(tid string, cmts []models.Commit) {
 			defer wg.Done()
+
+			messages := make([]string, len(cmts))
+			for i, c := range cmts {
+				messages[i] = c.Message
+			}
 
 			// Fetch ticket context for better summaries; proceed even if it fails.
 			var ticketTitle, ticketDescription string
@@ -203,23 +210,23 @@ func runE(cmd *cobra.Command, args []string) error {
 				ticketDescription = info.Description
 			}
 
-			summary, err := llmSummarizer.Summarize(msgs, ticketTitle, ticketDescription)
+			summary, err := llmSummarizer.Summarize(messages, ticketTitle, ticketDescription)
 			if err != nil {
 				log.Printf("[ERROR] summarizing %s: %v", tid, err)
-				results <- result{ticketID: tid, err: err}
+				results <- result{ticketID: tid, commits: cmts, err: err}
 				return
 			}
 
 			if !dryRun {
 				if err := jiraTracker.PostComment(tid, summary); err != nil {
 					log.Printf("[ERROR] posting comment to %s: %v", tid, err)
-					results <- result{ticketID: tid, err: err}
+					results <- result{ticketID: tid, commits: cmts, err: err}
 					return
 				}
 			}
 
-			results <- result{ticketID: tid, summary: summary}
-		}(ticketID, messages)
+			results <- result{ticketID: tid, commits: cmts, summary: summary}
+		}(ticketID, ticketCmts)
 	}
 
 	wg.Wait()
@@ -235,6 +242,15 @@ func runE(cmd *cobra.Command, args []string) error {
 				fmt.Printf("\n┌─ %s\n", r.ticketID)
 				for _, line := range strings.Split(strings.TrimSpace(r.summary), "\n") {
 					fmt.Printf("│  %s\n", line)
+				}
+				fmt.Println("│")
+				fmt.Println("│  Commits:")
+				for _, c := range r.commits {
+					sha := c.SHA
+					if len(sha) > 7 {
+						sha = sha[:7]
+					}
+					fmt.Printf("│    %s  %s\n", sha, c.Repository)
 				}
 				fmt.Println("└─ (not posted)")
 			}

@@ -50,8 +50,9 @@ func (g *GitHubProvider) GetCommits(since, until time.Time, user string) ([]mode
 
 		for _, item := range result.Commits {
 			commits = append(commits, models.Commit{
-				SHA:     item.GetSHA(),
-				Message: item.GetCommit().GetMessage(),
+				SHA:        item.GetSHA(),
+				Message:    item.GetCommit().GetMessage(),
+				Repository: item.GetRepository().GetFullName(),
 			})
 		}
 
@@ -101,8 +102,9 @@ func (g *GitHubProvider) GetOpenPRCommits(user string) ([]models.Commit, error) 
 					if !seen[sha] {
 						seen[sha] = true
 						commits = append(commits, models.Commit{
-							SHA:     sha,
-							Message: c.GetCommit().GetMessage(),
+							SHA:        sha,
+							Message:    c.GetCommit().GetMessage(),
+							Repository: owner + "/" + repo,
 						})
 					}
 				}

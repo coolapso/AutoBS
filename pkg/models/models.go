@@ -2,8 +2,9 @@ package models
 
 // Commit represents a single VCS commit.
 type Commit struct {
-	SHA     string
-	Message string
+	SHA        string
+	Message    string
+	Repository string // owner/repo, e.g. "acme/infra"
 }
 
 // Summary holds the LLM-generated summary for a ticket.
