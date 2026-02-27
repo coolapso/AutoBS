@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -130,7 +131,11 @@ func (l *LLMSummarizer) summarizeOpenAI(sysPrompt, userContent string) (string, 
 	if err != nil {
 		return "", fmt.Errorf("calling OpenAI API: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("[WARN] closing response body: %v", err)
+		}
+	}()
 
 	var result openAIResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -198,7 +203,11 @@ func (l *LLMSummarizer) summarizeGemini(sysPrompt, userContent string) (string, 
 	if err != nil {
 		return "", fmt.Errorf("calling Gemini API: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("[WARN] closing response body: %v", err)
+		}
+	}()
 
 	var result geminiResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -206,10 +215,10 @@ func (l *LLMSummarizer) summarizeGemini(sysPrompt, userContent string) (string, 
 	}
 
 	if result.Error != nil {
-		return "", fmt.Errorf("Gemini error: %s", result.Error.Message)
+		return "", fmt.Errorf("gemini error: %s", result.Error.Message)
 	}
 	if len(result.Candidates) == 0 || len(result.Candidates[0].Content.Parts) == 0 {
-		return "", fmt.Errorf("Gemini returned no content")
+		return "", fmt.Errorf("gemini returned no content")
 	}
 
 	return result.Candidates[0].Content.Parts[0].Text, nil
@@ -253,12 +262,12 @@ func (l *LLMSummarizer) summarizeBedrock(sysPrompt, userContent string) (string,
 
 	resp, ok := output.Output.(*types.ConverseOutputMemberMessage)
 	if !ok || len(resp.Value.Content) == 0 {
-		return "", fmt.Errorf("Bedrock returned no content")
+		return "", fmt.Errorf("bedrock returned no content")
 	}
 
 	textBlock, ok := resp.Value.Content[0].(*types.ContentBlockMemberText)
 	if !ok {
-		return "", fmt.Errorf("Bedrock response content is not text")
+		return "", fmt.Errorf("bedrock response content is not text")
 	}
 
 	return textBlock.Value, nil

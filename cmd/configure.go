@@ -34,7 +34,7 @@ func runConfigure(cmd *cobra.Command, args []string) error {
 
 	fmt.Println("Configure autobs")
 	fmt.Printf("Settings will be saved to: %s\n", configFilePath())
-	fmt.Println("Press Enter to keep the current value shown in [brackets].\n")
+	fmt.Println("Press Enter to keep the current value shown in [brackets].")
 
 	provider := promptChoice("LLM_PROVIDER  (openai/gemini/bedrock)", existing.LLMProvider, []string{"openai", "gemini", "bedrock"})
 

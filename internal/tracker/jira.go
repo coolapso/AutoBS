@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -43,10 +44,14 @@ func (j *JiraTracker) GetTicket(ticketID string) (*models.TicketInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("executing request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("[WARN] closing response body: %v", err)
+		}
+	}()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("Jira API returned status %d for ticket %s", resp.StatusCode, ticketID)
+		return nil, fmt.Errorf("jira API returned status %d for ticket %s", resp.StatusCode, ticketID)
 	}
 
 	var result struct {
@@ -129,10 +134,14 @@ func (j *JiraTracker) PostComment(ticketID string, body string) error {
 	if err != nil {
 		return fmt.Errorf("executing request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("[WARN] closing response body: %v", err)
+		}
+	}()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("Jira API returned status %d for ticket %s", resp.StatusCode, ticketID)
+		return fmt.Errorf("jira API returned status %d for ticket %s", resp.StatusCode, ticketID)
 	}
 
 	return nil
