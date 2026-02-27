@@ -1,7 +1,7 @@
-# updateMyTickets: Copilot CLI Instructions (Extensible Architecture)
+# autobs: Copilot CLI Instructions (Extensible Architecture)
 
 ## Project Overview
-`updateMyTickets` is a Go-based CLI tool that aggregates a developer's daily GitHub commit activity, summarizes it via an LLM, and posts the professional summary as a comment on the relevant Jira tickets. The architecture is decoupled via interfaces to allow future support for different providers (e.g., GitLab, Linear).
+`autobs` is a Go-based CLI tool that aggregates a developer's daily GitHub commit activity, summarizes it via an LLM, and posts the professional summary as a comment on the relevant Jira tickets. The architecture is decoupled via interfaces to allow future support for different providers (e.g., GitLab, Linear).
 
 ---
 
@@ -53,7 +53,7 @@
 
 ### Commands
 * `autobs` (default) — run the full pipeline
-* `autobs configure` — interactive setup that saves to `~/.autobs.json`
+* `autobs configure` — interactive setup that saves to `~/.config/autobs/config.json` (respects `$XDG_CONFIG_HOME`)
 
 ### Flags
 * `--dry-run` — generates LLM summaries, prints them to terminal, and **saves a cache** (`~/.autobs_cache.json`) for later posting
@@ -65,9 +65,9 @@
 ### Configuration Resolution
 Settings are resolved in this order (first wins):
 1. Environment variable
-2. Config file (`~/.updateMyTickets.json`)
+2. Config file (`~/.config/autobs/config.json`, or `$XDG_CONFIG_HOME/autobs/config.json` if set)
 
-The config file is written with `0600` permissions. Secrets are masked in the configure prompt.
+The config file is written with `0600` permissions (directory with `0700`). Secrets are masked in the configure prompt.
 
 ### Environment Variables
 | Variable       | Required for        | Notes |
