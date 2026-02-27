@@ -360,7 +360,17 @@
     <div class="card">
       <div class="card-icon">🕵️</div>
       <h3>Dry-run mode</h3>
-      <p>Preview the AI-generated corporate speak before it permanently pollutes your Jira tickets.</p>
+      <p>Preview the AI-generated corporate speak before it permanently pollutes your Jira tickets. Summaries are cached — so when you approve, <code>autobs</code> posts without calling the AI again. Pay once. Post once.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">💸</div>
+      <h3>Thrifty by design</h3>
+      <p>Run <code>--dry-run</code> to review. Run <code>autobs</code> to post from cache. One LLM call per update, ever. Tokens don't grow on trees and neither does your AI budget.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🚧</div>
+      <h3>WIP? No problem.</h3>
+      <p>Add <code>--include-prs</code> to pull in commits from your open PRs too — drafts included. Because work-in-progress is still work, and your PM definitely wants to hear about it.</p>
     </div>
     <div class="card">
       <div class="card-icon">🗣️</div>
@@ -430,7 +440,7 @@
       <div class="step-num">2</div>
       <div>
         <h3>Configure</h3>
-        <p>Run <code>autobs configure</code> — provide your GitHub token, Jira credentials, and LLM API key. Secrets stay local in <code>~/.autobs.json</code>.</p>
+        <p>Run <code>autobs configure</code> — provide your GitHub token, Jira credentials, and LLM API key. Secrets stay local in <code>~/.config/autobs/config.json</code>.</p>
       </div>
     </div>
     <div class="step">

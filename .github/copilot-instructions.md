@@ -137,7 +137,20 @@ All terminal output lives in `cmd/root.go`. Colors use `github.com/fatih/color` 
 └─ (not posted)       ← cBox + cMeta
 ```
 
+---
 
+## Website (`build/index.html`)
+
+The project website is a single self-contained HTML file served at `https://autobs.coolapso.sh`.
+
+* **Tone:** casual, funny, "vibe coded" personality — keep it irreverent. Corporate jokes, sarcastic asides, and self-aware humour are on-brand.
+* **Update when:** a new user-facing flag is added, a major feature changes the workflow, or existing content becomes stale (e.g. config path, flag names).
+* **Don't update for:** internal refactors, bug fixes, or changes that don't affect how a user interacts with the tool.
+* **Feature cards** live in the `<!-- FEATURES -->` grid section — add a card for any significant new flag or capability.
+* **How it works** steps reflect the high-level pipeline — only update if the user-visible flow changes.
+* **Config path:** `~/.config/autobs/config.json` (respects `$XDG_CONFIG_HOME`) — keep in sync with `configFilePath()` in `cmd/config_file.go`.
+
+---
 
 * **Formatting:** All Go code must be formatted with `go fmt` before committing.
 * **Linting:** All `golangci-lint` checks must be addressed before committing. Run `golangci-lint run` and resolve any reported issues.
