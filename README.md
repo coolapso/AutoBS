@@ -318,7 +318,7 @@ cmd/                  — CLI entry point (cobra), Jira ticket extraction, orche
 
 New VCS providers (e.g. GitLab) or trackers (e.g. Linear) can be added by implementing the respective interface. Jira ticket extraction (`Jira-Ticket: PROJ-123`) is decoupled from the VCS layer and lives in the orchestration layer.
 
-The tool was coded with github copilot cli, and more information and details about the project can be found in the [copilot-instructions](.copilot/instructions.md) file.
+The tool was coded with github copilot cli, and more information and details about the project can be found in the [copilot-instructions](.github/copilot-instructions.md) file.
 
 ---
 
