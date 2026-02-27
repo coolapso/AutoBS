@@ -104,7 +104,7 @@ func runE(cmd *cobra.Command, args []string) error {
 	jiraTracker := tracker.NewJiraTracker(env.jiraURL, env.jiraUser, env.jiraToken)
 
 	if dryRun {
-		cBanner.Println("--- DRY RUN — nothing will be posted to Jira ---")
+		fmt.Println(cBanner.Sprint("--- DRY RUN — nothing will be posted to Jira ---"))
 	}
 
 	// Compute target date window.
@@ -125,7 +125,7 @@ func runE(cmd *cobra.Command, args []string) error {
 		if err := cache.Delete(); err != nil {
 			return fmt.Errorf("clearing cache: %w", err)
 		}
-		cTip.Println("Dry-run cache cleared.")
+		fmt.Println(cTip.Sprint("Dry-run cache cleared."))
 	}
 
 	// On a normal (non-dry-run, non-standup) run, check for an existing cached dry-run.
@@ -178,7 +178,7 @@ func runE(cmd *cobra.Command, args []string) error {
 	// Standup mode: summarize all commits informally; no Jira posting or caching.
 	if standup {
 		if len(commits) == 0 {
-			cTip.Printf("No commits found for %s.\n", targetDate)
+			fmt.Printf("%s\n", cTip.Sprintf("No commits found for %s.", targetDate))
 			return nil
 		}
 		messages := make([]string, 0, len(commits))
@@ -190,7 +190,7 @@ func runE(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("summarizing standup: %w", err)
 		}
 		fmt.Println()
-		cHeader.Println("=== Standup Summary ===")
+		fmt.Println(cHeader.Sprint("=== Standup Summary ==="))
 		fmt.Println()
 		for _, line := range strings.Split(strings.TrimSpace(summary), "\n") {
 			fmt.Println(line)
@@ -210,24 +210,24 @@ func runE(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(commits) > 0 && len(ticketCommits) == 0 {
-		cTip.Println("No commits had a 'Jira-Ticket: PROJ-123' footer — nothing to post.")
-		cTip.Println("Tip: add a footer to your commits like:\n\n  Jira-Ticket: PROJ-123")
+		fmt.Println(cTip.Sprint("No commits had a 'Jira-Ticket: PROJ-123' footer — nothing to post."))
+		fmt.Println(cTip.Sprint("Tip: add a footer to your commits like:\n\n  Jira-Ticket: PROJ-123"))
 		return nil
 	}
 
 	if len(ticketCommits) == 0 {
-		cTip.Printf("No commits found for %s.\n", targetDate)
-		cTip.Println("Tips:")
-		cTip.Println("  • Check GITHUB_USER matches your GitHub login exactly")
-		cTip.Println("  • If your commits are in private org repos, your token needs the 'repo' scope")
-		cTip.Println("  • Try using the gh CLI token which has the right scopes:")
-		cTip.Println("      export GITHUB_TOKEN=$(gh auth token)")
+		fmt.Printf("%s\n", cTip.Sprintf("No commits found for %s.", targetDate))
+		fmt.Println(cTip.Sprint("Tips:"))
+		fmt.Println(cTip.Sprint("  • Check GITHUB_USER matches your GitHub login exactly"))
+		fmt.Println(cTip.Sprint("  • If your commits are in private org repos, your token needs the 'repo' scope"))
+		fmt.Println(cTip.Sprint("  • Try using the gh CLI token which has the right scopes:"))
+		fmt.Println(cTip.Sprint("      export GITHUB_TOKEN=$(gh auth token)"))
 		return nil
 	}
 
 	fmt.Printf("Found %d unique ticket(s): ", len(ticketCommits))
 	for tid := range ticketCommits {
-		cTicketID.Printf("%s ", tid)
+		fmt.Print(cTicketID.Sprintf("%s ", tid))
 	}
 	fmt.Println()
 
@@ -290,7 +290,7 @@ func runE(cmd *cobra.Command, args []string) error {
 
 	if dryRun {
 		fmt.Println()
-		cHeader.Println("=== autobs Dry Run Preview ===")
+		fmt.Println(cHeader.Sprint("=== autobs Dry Run Preview ==="))
 		for _, r := range allResults {
 			if r.err != nil {
 				fmt.Printf("\n%s %s — %v\n", cError.Sprint("[ERROR]"), r.ticketID, r.err)
@@ -335,7 +335,7 @@ func runE(cmd *cobra.Command, args []string) error {
 		}
 	} else {
 		fmt.Println()
-		cHeader.Println("=== autobs Report ===")
+		fmt.Println(cHeader.Sprint("=== autobs Report ==="))
 		for _, r := range allResults {
 			if r.err != nil {
 				fmt.Printf("  %s  %s — %v\n", cError.Sprint("[FAILED]"), r.ticketID, r.err)
@@ -379,7 +379,7 @@ func postFromCache(cached *cache.File, jiraTracker tracker.TrackerProvider) erro
 	close(resultsCh)
 
 	fmt.Println()
-	cHeader.Println("=== autobs Report ===")
+	fmt.Println(cHeader.Sprint("=== autobs Report ==="))
 	for r := range resultsCh {
 		if r.err != nil {
 			fmt.Printf("  %s  %s — %v\n", cError.Sprint("[FAILED]"), r.ticketID, r.err)
