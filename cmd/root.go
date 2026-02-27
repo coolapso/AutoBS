@@ -250,7 +250,11 @@ func runE(cmd *cobra.Command, args []string) error {
 					if len(sha) > 7 {
 						sha = sha[:7]
 					}
-					fmt.Printf("│    %s  %s\n", sha, c.Repository)
+					if c.PRNumber != 0 {
+						fmt.Printf("│    %s  %s  (PR #%d)\n", sha, c.Repository, c.PRNumber)
+					} else {
+						fmt.Printf("│    %s  %s\n", sha, c.Repository)
+					}
 				}
 				fmt.Println("└─ (not posted)")
 			}

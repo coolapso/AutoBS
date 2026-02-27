@@ -105,6 +105,7 @@ func (g *GitHubProvider) GetOpenPRCommits(user string) ([]models.Commit, error) 
 							SHA:        sha,
 							Message:    c.GetCommit().GetMessage(),
 							Repository: owner + "/" + repo,
+							PRNumber:   pr.GetNumber(),
 						})
 					}
 				}
