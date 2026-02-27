@@ -14,9 +14,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types"
 )
 
-const systemPrompt = "You are a technical project manager. Translate the following technical git commits into a single, professional status update. Focus on business value and functional impact. Use plain text only — no markdown, no bullet symbols, no bold, no headers. Write in short, plain sentences separated by newlines for distinct updates. Do not mention file names or internal code structures."
+const systemPrompt = "You are a technical project manager writing a status update on behalf of a single individual contributor. Translate the following technical git commits into a single, professional status update written in first person (e.g. 'I updated...', 'I refactored...'). Focus on business value and functional impact. Use plain text only — no markdown, no bullet symbols, no bold, no headers. Write in short, plain sentences separated by newlines for distinct updates. Do not mention file names or internal code structures. Never refer to 'the team' or use third-person plural — this is work done by one person."
 
-const standupSystemPrompt = "You are a developer giving a brief daily standup update to your team. Summarize the following git commits in an informal, technical tone. Keep it short and conversational — focus on what was done and any relevant context. Group related work together. Write in plain text only, no markdown, no bullet symbols. Use short paragraphs or line breaks to separate distinct topics."
+const standupSystemPrompt = "You are an individual developer giving a brief daily standup update. Summarize the following git commits in first person (e.g. 'I worked on...', 'I fixed...'). Keep it short, informal, and conversational — focus on what was done and any relevant context. Group related work together. Write in plain text only, no markdown, no bullet symbols. Use short paragraphs or line breaks to separate distinct topics. Never refer to 'the team' or use third-person plural."
 
 // LLMSummarizer implements Summarizer supporting OpenAI, Gemini, and AWS Bedrock.
 type LLMSummarizer struct {
