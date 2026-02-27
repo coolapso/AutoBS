@@ -13,6 +13,7 @@ import (
 	"github.com/cfcolaco/autobs/internal/tracker"
 	"github.com/cfcolaco/autobs/internal/vcs"
 	"github.com/cfcolaco/autobs/pkg/models"
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
@@ -20,6 +21,20 @@ var dryRun bool
 var yesterday bool
 var standup bool
 var includePRs bool
+
+// color palette
+var (
+	cHeader   = color.New(color.Bold)
+	cBanner   = color.New(color.FgYellow, color.Bold)
+	cSuccess  = color.New(color.FgGreen, color.Bold)
+	cError    = color.New(color.FgRed, color.Bold)
+	cBox      = color.New(color.FgCyan)
+	cTicketID = color.New(color.FgCyan, color.Bold)
+	cMeta     = color.New(color.FgHiBlack)
+	cSHA      = color.New(color.FgYellow)
+	cPR       = color.New(color.FgMagenta)
+	cTip      = color.New(color.FgYellow)
+)
 
 var rootCmd = &cobra.Command{
 	Use:   "autobs",
@@ -86,7 +101,7 @@ func runE(cmd *cobra.Command, args []string) error {
 	jiraTracker := tracker.NewJiraTracker(env.jiraURL, env.jiraUser, env.jiraToken)
 
 	if dryRun {
-		fmt.Println("--- DRY RUN — nothing will be posted to Jira ---")
+		cBanner.Println("--- DRY RUN — nothing will be posted to Jira ---")
 	}
 
 	// Collect commits for the target day.
@@ -123,12 +138,12 @@ func runE(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Printf("Found %d commit(s) from GitHub for user %q on %s.\n", len(commits), env.githubUser, since.Format("2006-01-02"))
+	fmt.Printf("Found %d commit(s) from GitHub for user %s on %s.\n",
+		len(commits), cTicketID.Sprint(env.githubUser), cMeta.Sprint(since.Format("2006-01-02")))
 
-	// Standup mode: summarize all commits in an informal style and print; never post to Jira.
 	if standup {
 		if len(commits) == 0 {
-			fmt.Printf("No commits found for %s.\n", since.Format("2006-01-02"))
+			cTip.Printf("No commits found for %s.\n", since.Format("2006-01-02"))
 			return nil
 		}
 		messages := make([]string, 0, len(commits))
@@ -139,7 +154,8 @@ func runE(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("summarizing standup: %w", err)
 		}
-		fmt.Println("\n=== Standup Summary ===")
+		fmt.Println()
+		cHeader.Println("=== Standup Summary ===")
 		fmt.Println()
 		for _, line := range strings.Split(strings.TrimSpace(summary), "\n") {
 			fmt.Println(line)
@@ -159,24 +175,24 @@ func runE(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(commits) > 0 && len(ticketCommits) == 0 {
-		fmt.Println("No commits had a 'Jira-Ticket: PROJ-123' footer — nothing to post.")
-		fmt.Println("Tip: add a footer to your commits like:\n\n  Jira-Ticket: PROJ-123")
+		cTip.Println("No commits had a 'Jira-Ticket: PROJ-123' footer — nothing to post.")
+		cTip.Println("Tip: add a footer to your commits like:\n\n  Jira-Ticket: PROJ-123")
 		return nil
 	}
 
 	if len(ticketCommits) == 0 {
-		fmt.Printf("No commits found for %s.\n", since.Format("2006-01-02"))
-		fmt.Println("Tips:")
-		fmt.Println("  • Check GITHUB_USER matches your GitHub login exactly")
-		fmt.Println("  • If your commits are in private org repos, your token needs the 'repo' scope")
-		fmt.Println("  • Try using the gh CLI token which has the right scopes:")
-		fmt.Println("      export GITHUB_TOKEN=$(gh auth token)")
+		cTip.Printf("No commits found for %s.\n", since.Format("2006-01-02"))
+		cTip.Println("Tips:")
+		cTip.Println("  • Check GITHUB_USER matches your GitHub login exactly")
+		cTip.Println("  • If your commits are in private org repos, your token needs the 'repo' scope")
+		cTip.Println("  • Try using the gh CLI token which has the right scopes:")
+		cTip.Println("      export GITHUB_TOKEN=$(gh auth token)")
 		return nil
 	}
 
-	fmt.Printf("%d unique ticket(s) found: ", len(ticketCommits))
+	fmt.Printf("Found %d unique ticket(s): ", len(ticketCommits))
 	for tid := range ticketCommits {
-		fmt.Printf("%s ", tid)
+		cTicketID.Printf("%s ", tid)
 	}
 	fmt.Println()
 
@@ -234,38 +250,42 @@ func runE(cmd *cobra.Command, args []string) error {
 
 	// Print final report.
 	if dryRun {
-		fmt.Println("\n=== autobs Dry Run Preview ===")
+		fmt.Println()
+		cHeader.Println("=== autobs Dry Run Preview ===")
 		for r := range results {
 			if r.err != nil {
-				fmt.Printf("\n[ERROR] %s — %v\n", r.ticketID, r.err)
+				fmt.Printf("\n%s %s — %v\n", cError.Sprint("[ERROR]"), r.ticketID, r.err)
 			} else {
-				fmt.Printf("\n┌─ %s\n", r.ticketID)
+				fmt.Printf("\n%s %s\n", cBox.Sprint("┌─"), cTicketID.Sprint(r.ticketID))
 				for _, line := range strings.Split(strings.TrimSpace(r.summary), "\n") {
-					fmt.Printf("│  %s\n", line)
+					fmt.Printf("%s  %s\n", cBox.Sprint("│"), line)
 				}
-				fmt.Println("│")
-				fmt.Println("│  Commits:")
+				fmt.Println(cBox.Sprint("│"))
+				fmt.Printf("%s  %s\n", cBox.Sprint("│"), cMeta.Sprint("Commits:"))
 				for _, c := range r.commits {
 					sha := c.SHA
 					if len(sha) > 7 {
 						sha = sha[:7]
 					}
 					if c.PRNumber != 0 {
-						fmt.Printf("│    %s  %s  (PR #%d)\n", sha, c.Repository, c.PRNumber)
+						fmt.Printf("%s    %s  %s  %s\n",
+							cBox.Sprint("│"), cSHA.Sprint(sha), cMeta.Sprint(c.Repository), cPR.Sprintf("(PR #%d)", c.PRNumber))
 					} else {
-						fmt.Printf("│    %s  %s\n", sha, c.Repository)
+						fmt.Printf("%s    %s  %s\n",
+							cBox.Sprint("│"), cSHA.Sprint(sha), cMeta.Sprint(c.Repository))
 					}
 				}
-				fmt.Println("└─ (not posted)")
+				fmt.Printf("%s %s\n", cBox.Sprint("└─"), cMeta.Sprint("(not posted)"))
 			}
 		}
 	} else {
-		fmt.Println("\n=== autobs Report ===")
+		fmt.Println()
+		cHeader.Println("=== autobs Report ===")
 		for r := range results {
 			if r.err != nil {
-				fmt.Printf("  [FAILED]  %s — %v\n", r.ticketID, r.err)
+				fmt.Printf("  %s  %s — %v\n", cError.Sprint("[FAILED]"), r.ticketID, r.err)
 			} else {
-				fmt.Printf("  [UPDATED] %s\n", r.ticketID)
+				fmt.Printf("  %s %s\n", cSuccess.Sprint("[UPDATED]"), cTicketID.Sprint(r.ticketID))
 			}
 		}
 	}
